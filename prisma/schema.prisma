@@ -1,0 +1,204 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  PENDING
+  COMPLETED
+  CANCELED
+  FAILED
+}
+
+enum TaskDifficulty {
+  EASY
+  NORMAL
+  HARD
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum UserStatus {
+  USER
+  ADMINISTRATOR
+  BANNED
+}
+
+enum ItemType {
+  POKEBALL
+  EVOLUTION
+  QUEST
+  KEY
+}
+
+enum ItemRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model User {
+  id         String     @id @default(uuid())
+  username   String     @unique
+  email      String     @unique
+  password   String
+  createdAt  DateTime   @default(now())
+  modifiedAt DateTime   @updatedAt
+  status     UserStatus @default(USER)
+  lastLogin  DateTime?
+
+  tasks      Task[]
+  items      UserItem[]
+  currencies UserCurrency[]
+  pokemons   UserPokemon[]
+  locations  UserLocation[]
+}
+
+model Task {
+  id               String         @id @default(uuid())
+  title            String
+  description      String
+  status           TaskStatus     @default(PENDING)
+  isDaily          Boolean        @default(false)
+  isWeekly         Boolean        @default(false)
+  isInfinite       Boolean        @default(false)
+  amountToComplete Int
+  currentAmount    Int            @default(0)
+  weeklyDays       DayOfWeek[]
+  difficulty       TaskDifficulty @default(NORMAL)
+  dailyLimitAmount Int?
+  createdAt        DateTime       @default(now())
+  modifiedAt       DateTime       @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+}
+
+model Item {
+  id             Int        @id @default(autoincrement())
+  name           String
+  type           ItemType
+  description    String
+  evolvesPokemon String[]
+  buyPrice       Int
+  sellPrice      Int
+  levelUnlock    Int
+  catchRate      Float
+  rarity         ItemRarity @default(COMMON)
+
+  userItems UserItem[]
+
+  Location Location[]
+}
+
+model Currency {
+  id          Int    @id @default(autoincrement())
+  name        String @unique
+  description String
+
+  userCurrencies UserCurrency[]
+}
+
+model Pokemon {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  type1          String
+  type2          String?
+  spriteUrl      String
+  shinySpriteUrl String?
+  evolvesInto    String[]
+  evolvesFrom    String?
+  levelEvolve    Int?
+  catchChance    Float
+
+  userPokemons UserPokemon[]
+
+  location Location[]
+}
+
+model Location {
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  region   String
+  levelMin Int
+  levelMax Int
+  moneyMin Int
+  moneyMax Int
+
+  pokemons      Pokemon[]
+  items         Item[]
+  userLocations UserLocation[]
+}
+
+model UserLocation {
+  id              Int     @id @default(autoincrement())
+  unlocked        Boolean @default(false)
+  completed       Boolean @default(false)
+  completedAmount Int     @default(0)
+
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId Int
+
+  @@unique([userId, locationId])
+}
+
+model UserItem {
+  id       Int     @id @default(autoincrement())
+  quantity Int     @default(0)
+  unlocked Boolean @default(false)
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+  item   Item   @relation(fields: [itemId], references: [id])
+  itemId Int
+
+  @@unique([userId, itemId])
+}
+
+model UserCurrency {
+  id       Int @id @default(autoincrement())
+  quantity Int @default(0)
+
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  currency   Currency @relation(fields: [currencyId], references: [id])
+  currencyId Int
+
+  @@unique([userId, currencyId])
+}
+
+model UserPokemon {
+  id           Int     @id @default(autoincrement())
+  amountCaught Int     @default(0)
+  shiny        Boolean @default(false)
+
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String
+  pokemon   Pokemon @relation(fields: [pokemonId], references: [id])
+  pokemonId Int
+
+  @@unique([userId, pokemonId])
+}
