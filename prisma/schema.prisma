@@ -59,14 +59,18 @@ enum ItemRarity {
 }
 
 model User {
-  id         String     @id @default(uuid())
-  username   String     @unique
-  email      String     @unique
-  password   String
-  createdAt  DateTime   @default(now())
-  modifiedAt DateTime   @updatedAt
-  status     UserStatus @default(USER)
-  lastLogin  DateTime?
+  id                  String     @id @default(uuid())
+  username            String     @unique
+  email               String     @unique
+  password            String
+  createdAt           DateTime   @default(now())
+  modifiedAt          DateTime   @updatedAt
+  status              UserStatus @default(USER)
+  lastLogin           DateTime?
+  level               Int        @default(1)
+  experience          Int        @default(0)
+  money               Int        @default(0)
+  nextLevelExperience Int        @default(100)
 
   tasks      Task[]
   items      UserItem[]
@@ -122,6 +126,7 @@ model Currency {
 
 model Pokemon {
   id             Int      @id @default(autoincrement())
+  pokedexId      Int      @unique
   name           String   @unique
   type1          String
   type2          String?
