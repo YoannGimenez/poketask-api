@@ -1,6 +1,7 @@
 import { Prisma } from '../../generated/prisma';
 import { Request, Response } from 'express';
 import { formatDate } from './formatDate';
+import { ZodError } from 'zod';
 
 const getPrismaErrorMessage = (error: Prisma.PrismaClientKnownRequestError) => {
 
@@ -118,6 +119,16 @@ export const handleError = (error: unknown, req: Request, res: Response, errorMe
         sendErrorResponse(res, 500, error.message);
 
         // Handle unknown errors
+        
+    } else if (error instanceof ZodError) {
+        res.status(400).json({
+            error: 'Validation échouée',
+            details: error.issues.map(e => ({
+                field: e.path.join('.'),
+                message: e.message
+            }))
+        });
+        return;
     } else {
 
         // Log the error

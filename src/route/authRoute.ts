@@ -1,16 +1,15 @@
 import { Router } from 'express';
 import { authController } from '../controller/authController';
 import passport from 'passport';
+import { validateData } from '../middleware/validationMiddleware';
+import { loginSchema, registerSchema } from '../utils/validationSchemas';
 
 const router = Router();
 
-// Route d'inscription (pas d'authentification requise)
-router.post('/register', authController.register);
+router.post('/register', validateData(registerSchema), authController.register);
 
-// Route de connexion (pas d'authentification requise)
-router.post('/login', authController.login);
+router.post('/login', validateData(loginSchema), authController.login);
 
-// Route pour obtenir le profil (authentification JWT requise)
 router.get('/profile', 
     passport.authenticate('jwt', { session: false }), 
     authController.getProfile
