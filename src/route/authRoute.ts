@@ -9,6 +9,7 @@ const router = Router();
 router.post('/register', validateData(registerSchema), authController.register);
 
 router.post('/login', validateData(loginSchema), authController.login);
+router.get('/verify', authController.verifyToken);
 
 router.get('/profile', 
     passport.authenticate('jwt', { session: false }), 

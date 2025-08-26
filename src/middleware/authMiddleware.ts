@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import passport from 'passport';
 
-// Middleware pour protéger les routes avec JWT
 export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
-    passport.authenticate('jwt', { session: false }, (err: any, user: any, info: any) => {
+    passport.authenticate('jwt', { session: false }, (err: any, user: any, _info: any) => {
         if (err) {
             return next(err);
         }
@@ -11,16 +10,6 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
             return res.status(401).json({ error: 'Token invalide ou expiré' });
         }
         req.user = user;
-        next();
-    })(req, res, next);
-}
-
-// Middleware optionnel pour vérifier si l'utilisateur est connecté
-export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
-    passport.authenticate('jwt', { session: false }, (err: any, user: any) => {
-        if (user) {
-            req.user = user;
-        }
         next();
     })(req, res, next);
 }

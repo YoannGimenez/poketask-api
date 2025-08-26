@@ -17,7 +17,6 @@ interface LoginData {
 }
 
 async function register(data: RegisterData): Promise<Omit<User, 'password'>> {
-    // Vérifier si l'utilisateur existe déjà
     const existingUser = await prisma.user.findFirst({
         where: {
             OR: [
@@ -31,10 +30,8 @@ async function register(data: RegisterData): Promise<Omit<User, 'password'>> {
         throw new Error('Un utilisateur avec cet email ou nom d\'utilisateur existe déjà');
     }
 
-    // Hasher le mot de passe
     const hashedPassword = bcrypt.hashSync(data.password, 10);
 
-    // Créer l'utilisateur
     const user = await prisma.user.create({
         data: {
             username: data.username,
@@ -43,13 +40,11 @@ async function register(data: RegisterData): Promise<Omit<User, 'password'>> {
         }
     });
 
-    // Retourner l'utilisateur sans le mot de passe
     const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
 }
 
 async function login(data: LoginData): Promise<{ user: Omit<User, 'password'>; token: string }> {
-    // Trouver l'utilisateur par email
     const user = await prisma.user.findUnique({
         where: { email: data.email }
     });
@@ -58,26 +53,22 @@ async function login(data: LoginData): Promise<{ user: Omit<User, 'password'>; t
         throw new Error('Email ou mot de passe incorrect');
     }
 
-    // Vérifier le mot de passe
     const isValidPassword = bcrypt.compareSync(data.password, user.password);
     if (!isValidPassword) {
         throw new Error('Email ou mot de passe incorrect');
     }
 
-    // Mettre à jour la dernière connexion
     await prisma.user.update({
         where: { id: user.id },
         data: { lastLogin: new Date() }
     });
 
-    // Générer le token JWT
     const token = jwt.sign(
         { userId: user.id, email: user.email },
         JWT_SECRET,
-        { expiresIn: '24h' }
+        { expiresIn: '7d' }
     );
 
-    // Retourner l'utilisateur sans le mot de passe et le token
     const { password, ...userWithoutPassword } = user;
     return { user: userWithoutPassword, token };
 }
@@ -93,8 +84,54 @@ async function getProfile(userId: string): Promise<Omit<User, 'password'> | null
     return userWithoutPassword;
 }
 
+async function verifyAndRefreshToken(token: string): Promise<{ user: Omit<User, 'password'>; token: string; isNew: boolean }> {
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId }
+        });
+
+        if (!user) {
+            throw new Error('Utilisateur non trouvé');
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        const timeLeft = decoded.exp - now;
+        
+        const threeDaysInSeconds = 72 * 60 * 60;
+        let isNew = false;
+        let newToken = token;
+
+        if (timeLeft < threeDaysInSeconds) {
+            newToken = jwt.sign(
+                { userId: user.id, email: user.email },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+            isNew = true;
+        }
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() }
+        });
+
+        const { password, ...userWithoutPassword } = user;
+        return { user: userWithoutPassword, token: newToken, isNew };
+    } catch (error) {
+        if (error instanceof jwt.JsonWebTokenError) {
+            throw new Error('Token invalide');
+        } else if (error instanceof jwt.TokenExpiredError) {
+            throw new Error('Token expiré');
+        }
+        throw error;
+    }
+}
+
 export const authService = {
     register,
     login,
-    getProfile
+    getProfile,
+    verifyAndRefreshToken
 };

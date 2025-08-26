@@ -5,7 +5,6 @@ async function register(req: Request, res: Response, next: NextFunction): Promis
     try {
         const { username, email, password } = req.body;
 
-        // Validation basique
         if (!username || !email || !password) {
             res.status(400).json({ error: 'Tous les champs sont requis' });
             return;
@@ -57,7 +56,6 @@ async function login(req: Request, res: Response, next: NextFunction): Promise<v
 
 async function getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-        // req.user est défini par Passport
         const userId = (req.user as any).id;
         const user = await authService.getProfile(userId);
         
@@ -72,8 +70,42 @@ async function getProfile(req: Request, res: Response, next: NextFunction): Prom
     }
 }
 
+async function verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            res.status(401).json({ error: 'Token d\'authentification requis' });
+            return;
+        }
+
+        const token = authHeader.substring(7);
+        
+        if (!token) {
+            res.status(401).json({ error: 'Token invalide' });
+            return;
+        }
+
+        const result = await authService.verifyAndRefreshToken(token);
+        
+        res.status(200).json({
+            message: result.isNew ? 'Token renouvelé' : 'Token valide',
+            user: result.user,
+            token: result.token,
+            isNew: result.isNew
+        });
+    } catch (err) {
+        if (err instanceof Error) {
+            res.status(401).json({ error: err.message });
+        } else {
+            next(err);
+        }
+    }
+}
+
 export const authController = {
     register,
     login,
-    getProfile
+    getProfile,
+    verifyToken
 };
