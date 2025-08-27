@@ -29,15 +29,20 @@ export const createTaskSchema = z.object({
         .min(1, 'La description est requise')
         .max(100, 'La description ne peut pas dépasser 100 caractères'),
     
-    isDaily: z.boolean().optional(),
-    isWeekly: z.boolean().optional(),
-    isInfinite: z.boolean().optional(),
-    amountToComplete: z.number()
-        .int('Le montant doit être un nombre entier')
-        .positive('Le montant doit être positif'),
+    status: z.enum(['PENDING', 'COMPLETED', 'TRUE_COMPLETED', 'DELETED', 'EXPIRED']).default('PENDING'),
+    type: z.enum(['DAILY', 'WEEKLY', 'ONE_TIME', 'REPEATABLE']).default('DAILY'),
+    difficulty: z.enum(['EASY', 'NORMAL', 'HARD']).default('NORMAL'),
+    timezone: z.string().default('UTC'),
+    dateStart: z.date().optional(),
+    dateEnd: z.date().optional()
+});
 
-    difficulty: z.enum(['EASY', 'NORMAL', 'HARD']).optional(),
-    weeklyDays: z.array(z.enum(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'])).optional()
+export const taskIdSchema = z.object({
+    id: z.uuid('ID de tâche invalide')
+});
+
+export const userIdSchema = z.object({
+    id: z.uuid('ID d\'utilisateur invalide')
 });
 
 export const updateTaskSchema = createTaskSchema.partial();
@@ -46,3 +51,5 @@ export type RegisterData = z.infer<typeof registerSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
 export type CreateTaskData = z.infer<typeof createTaskSchema>;
 export type UpdateTaskData = z.infer<typeof updateTaskSchema>;
+export type TaskIdParams = z.infer<typeof taskIdSchema>;
+export type UserIdParams = z.infer<typeof userIdSchema>;

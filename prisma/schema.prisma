@@ -17,8 +17,16 @@ datasource db {
 enum TaskStatus {
   PENDING
   COMPLETED
-  CANCELED
-  FAILED
+  TRUE_COMPLETED
+  DELETED
+  EXPIRED
+}
+
+enum TaskType {
+  DAILY
+  WEEKLY
+  ONE_TIME
+  REPEATABLE
 }
 
 enum TaskDifficulty {
@@ -27,17 +35,8 @@ enum TaskDifficulty {
   HARD
 }
 
-enum DayOfWeek {
-  MONDAY
-  TUESDAY
-  WEDNESDAY
-  THURSDAY
-  FRIDAY
-  SATURDAY
-  SUNDAY
-}
-
 enum UserStatus {
+  PENDING_CONFIRMATION
   USER
   ADMINISTRATOR
   BANNED
@@ -71,6 +70,7 @@ model User {
   experience          Int        @default(0)
   money               Int        @default(0)
   nextLevelExperience Int        @default(100)
+  timezone            String     @default("UTC")
 
   tasks      Task[]
   items      UserItem[]
@@ -80,20 +80,17 @@ model User {
 }
 
 model Task {
-  id               String         @id @default(uuid())
-  title            String
-  description      String
-  status           TaskStatus     @default(PENDING)
-  isDaily          Boolean        @default(false)
-  isWeekly         Boolean        @default(false)
-  isInfinite       Boolean        @default(false)
-  amountToComplete Int
-  currentAmount    Int            @default(0)
-  weeklyDays       DayOfWeek[]
-  difficulty       TaskDifficulty @default(NORMAL)
-  dailyLimitAmount Int?
-  createdAt        DateTime       @default(now())
-  modifiedAt       DateTime       @updatedAt
+  id          String         @id @default(uuid())
+  title       String
+  description String
+  status      TaskStatus     @default(PENDING)
+  type        TaskType       @default(DAILY)
+  difficulty  TaskDifficulty @default(NORMAL)
+  createdAt   DateTime       @default(now())
+  modifiedAt  DateTime       @updatedAt
+  dateStart   DateTime?
+  dateEnd     DateTime?
+  timezone    String         @default("UTC")
 
   user   User   @relation(fields: [userId], references: [id])
   userId String

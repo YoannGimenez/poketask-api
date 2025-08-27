@@ -23,3 +23,26 @@ export function validateData(schema: ZodType) {
         }
     };
 }
+
+export function validateParams(schema: ZodType) {
+    return (req: Request, res: Response, next: NextFunction) => {
+        try {
+            schema.parse(req.params);
+            next();
+        } catch (error) {
+            if (error instanceof ZodError) {
+                const errorMessages = error.issues.map((issue) => ({
+                    field: issue.path.join('.'),
+                    message: issue.message,
+                }));
+
+                res.status(400).json({
+                    error: 'Paramètres invalides',
+                    details: errorMessages,
+                });
+            } else {
+                res.status(500).json({ error: 'Erreur interne du serveur' });
+            }
+        }
+    };
+}

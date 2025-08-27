@@ -1,5 +1,8 @@
 import prisma from '../lib/prisma';
-import {Task} from "../../generated/prisma";
+import {$Enums, Task} from "../../generated/prisma";
+import { CreateTaskData } from '../utils/validationSchemas';
+import { getStartOfDayInTimezone, getEndOfDayInTimezone, getStartOfWeekInTimezone, getEndOfWeekInTimezone } from '../utils/dateUtils';
+import TaskType = $Enums.TaskType;
 
 async function getAll(): Promise<Task[]> {
     return prisma.task.findMany();
@@ -11,19 +14,57 @@ async function getById(id: string): Promise<Task | null> {
     });
 }
 
-async function getAllByUser(userId: string): Promise<Task[]> {
+async function getMyTasks(userId: string): Promise<Task[]> {
     return prisma.task.findMany({
         where: { userId },
     });
 }
 
-async function create(data: Omit<Task, 'id' | 'createdAt' | 'modifiedAt'>): Promise<Task> {
-    return prisma.task.create({ 
+async function create(data: CreateTaskData, userId: string): Promise<Task> {
+
+    let dateStart: Date | null = null;
+    let dateEnd: Date | null = null;
+
+    const timezone = data.timezone
+
+
+    if (data.dateStart && data.dateEnd) {
+        dateStart = new Date(data.dateStart);
+        dateEnd = new Date(data.dateEnd);
+    } else {
+        switch(data.type) {
+            case TaskType.DAILY:
+                dateStart = getStartOfDayInTimezone(timezone);
+                dateEnd = getEndOfDayInTimezone(timezone);
+                break;
+                
+            case TaskType.WEEKLY:
+                dateStart = getStartOfWeekInTimezone(timezone);
+                dateEnd = getEndOfWeekInTimezone(timezone);
+                break;
+                
+            case TaskType.REPEATABLE:
+                dateStart = getStartOfDayInTimezone(timezone);
+                break;
+                
+            case TaskType.ONE_TIME:
+                break;
+                
+            default:
+                throw new Error('Type de tâche invalide');
+        }
+    }
+
+    return prisma.task.create({
         data: {
             ...data,
-            userId: data.userId
+            userId: userId,
+            dateStart: dateStart,
+            dateEnd: dateEnd,
+            timezone: timezone
         }
-    });}
+    });
+}
 
 async function update(id: string, data: Partial<Task>): Promise<Task> {
     return prisma.task.update({
@@ -42,8 +83,8 @@ async function remove(id: string): Promise<Task> {
 export const taskService = {
     getAll,
     getById,
-    getAllByUser,
+    getMyTasks,
     create,
     update,
-    remove,
+    remove
 };

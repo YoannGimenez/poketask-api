@@ -1,5 +1,6 @@
 import { taskService } from '../service/taskService';
 import { Request, Response, NextFunction } from 'express';
+import {User} from "../../generated/prisma";
 
 
 async function getAll(_req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -11,9 +12,10 @@ async function getAll(_req: Request, res: Response, next: NextFunction): Promise
     }
 }
 
-async function getAllByUser(req: Request, res: Response, next: NextFunction): Promise<void>{
+async function getMyTasks(req: Request, res: Response, next: NextFunction): Promise<void>{
     try {
-        const tasks = await taskService.getAllByUser(req.params.userId);
+        const userId = (req.user as User).id;
+        const tasks = await taskService.getMyTasks(userId);
         res.status(200).json(tasks);
     } catch (err) {
         next(err);
@@ -32,10 +34,14 @@ async function getById(req: Request, res: Response, next: NextFunction): Promise
 
 async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-        const userId = (req.user as any).id;
-        const taskData = { ...req.body, userId };
+        const userId = (req.user as User).id;
+        const taskData = { ...req.body };
         
-        const task = await taskService.create(taskData);        res.status(201).json(task);
+        const task = await taskService.create(taskData, userId);
+        res.status(201).json({ 
+            message: 'Tâche créée avec succès',
+            task 
+        });
     } catch (err) {
         next(err);
     }
@@ -43,7 +49,7 @@ async function create(req: Request, res: Response, next: NextFunction): Promise<
 
 async function update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-        const userId = (req.user as any).id;
+        const userId = (req.user as User).id;
         const taskId = req.params.id;
         
         const existingTask = await taskService.getById(taskId);
@@ -73,5 +79,5 @@ export const taskController = {
     create,
     update,
     remove,
-    getAllByUser
+    getMyTasks
 };

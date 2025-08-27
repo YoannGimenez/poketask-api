@@ -1,6 +1,7 @@
 import { app } from './app';
 import prisma from './lib/prisma';
 import passport from './lib/passport';
+import { startTaskRegenerationCron } from './service/taskRecreateCron';
 
 const PORT = process.env.PORT || 3000;
 const API_URL = process.env.API_URL;
@@ -10,6 +11,7 @@ const server = app.listen(PORT, () => {
 });
 
 app.use(passport.initialize());
+startTaskRegenerationCron();
 
 
 process.on('SIGINT', async () => {
