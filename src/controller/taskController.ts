@@ -34,6 +34,7 @@ async function getById(req: Request, res: Response, next: NextFunction): Promise
 
 async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+        console.log("Creating task with data:", req.body);
         const userId = (req.user as User).id;
         const taskData = { ...req.body };
         
@@ -43,6 +44,7 @@ async function create(req: Request, res: Response, next: NextFunction): Promise<
             task 
         });
     } catch (err) {
+        console.log(err);
         next(err);
     }
 }
@@ -51,25 +53,111 @@ async function update(req: Request, res: Response, next: NextFunction): Promise<
     try {
         const userId = (req.user as User).id;
         const taskId = req.params.id;
+        const updateData = req.body;
         
-        const existingTask = await taskService.getById(taskId);
-        if (!existingTask || existingTask.userId !== userId) {
-            res.status(403).json({ error: 'Accès non autorisé' });
-            return;
-        }
+        const result = await taskService.update(taskId, updateData, userId);
         
-        const task = await taskService.update(taskId, req.body);        res.json(task);
+        res.status(200).json({
+            success: result.success,
+            message: result.message,
+            task: result.task
+        });
     } catch (err) {
-        next(err);
+        if (err instanceof Error) {
+            if (err.message.includes('non trouvée')) {
+                res.status(404).json({ 
+                    success: false, 
+                    error: err.message 
+                });
+            } else if (err.message.includes('Impossible de modifier')) {
+                res.status(400).json({ 
+                    success: false, 
+                    error: err.message 
+                });
+            } else if (err.message.includes('accès non autorisé')) {
+                res.status(403).json({ 
+                    success: false, 
+                    error: err.message 
+                });
+            } else if (err.message.includes('Erreur lors de la mise à jour')) {
+                res.status(500).json({ 
+                    success: false, 
+                    error: err.message 
+                });
+            } else {
+                res.status(400).json({ 
+                    success: false, 
+                    error: err.message 
+                });
+            }
+        } else {
+            res.status(500).json({ 
+                success: false, 
+                error: 'Erreur interne du serveur' 
+            });
+        }
     }
 }
 
 async function remove(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-        await taskService.remove(req.params.id);
-        res.status(204).send();
+        const userId = (req.user as User).id;
+        const taskId = req.params.id;
+        
+        const result = await taskService.remove(taskId, userId);
+        
+        res.status(200).json({
+            success: result.success,
+            message: result.message
+        });
     } catch (err) {
-        next(err);
+        if (err instanceof Error) {
+            if (err.message.includes('non trouvée')) {
+                res.status(404).json({ 
+                    success: false, 
+                    error: err.message 
+                });
+            } else if (err.message.includes('Impossible de supprimer')) {
+                res.status(400).json({ 
+                    success: false, 
+                    error: err.message 
+                });
+            } else if (err.message.includes('accès non autorisé')) {
+                res.status(403).json({ 
+                    success: false, 
+                    error: err.message 
+                });
+            } else {
+                res.status(500).json({ 
+                    success: false, 
+                    error: err.message 
+                });
+            }
+        } else {
+            res.status(500).json({ 
+                success: false, 
+                error: 'Erreur interne du serveur' 
+            });
+        }
+    }
+}
+
+async function completeTask(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const userId = (req.user as User).id;
+        const taskId = req.params.id;
+        
+        const task = await taskService.completeTask(taskId, userId);
+        res.status(200).json({ 
+            message: 'Tâche marquée comme complétée',
+            task 
+        });
+    } catch (err) {
+        if (err instanceof Error) {
+            res.status(400).json({ error: err.message });
+        } else {
+            next(err);
+        }
     }
 }
 
@@ -79,5 +167,6 @@ export const taskController = {
     create,
     update,
     remove,
-    getMyTasks
+    getMyTasks,
+    completeTask
 };

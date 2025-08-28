@@ -1,8 +1,7 @@
 import prisma from '../lib/prisma';
-import {$Enums, Task} from "../../generated/prisma";
+import {Task, TaskStatus, TaskType} from "../../generated/prisma";
 import { CreateTaskData } from '../utils/validationSchemas';
 import { getStartOfDayInTimezone, getEndOfDayInTimezone, getStartOfWeekInTimezone, getEndOfWeekInTimezone } from '../utils/dateUtils';
-import TaskType = $Enums.TaskType;
 
 async function getAll(): Promise<Task[]> {
     return prisma.task.findMany();
@@ -16,7 +15,27 @@ async function getById(id: string): Promise<Task | null> {
 
 async function getMyTasks(userId: string): Promise<Task[]> {
     return prisma.task.findMany({
-        where: { userId },
+        where: {
+            userId,
+            status: {
+                in: [TaskStatus.PENDING, TaskStatus.COMPLETED],
+            },
+        },
+    });
+}
+
+async function completeTask(id: string, userId: string): Promise<Task> {
+    const existingTask = await prisma.task.findFirst({
+        where: { id, userId }
+    });
+
+    if (!existingTask) {
+        throw new Error('Tâche non trouvée ou accès non autorisé');
+    }
+
+    return prisma.task.update({
+        where: { id },
+        data: { status: 'COMPLETED' }
     });
 }
 
@@ -66,17 +85,85 @@ async function create(data: CreateTaskData, userId: string): Promise<Task> {
     });
 }
 
-async function update(id: string, data: Partial<Task>): Promise<Task> {
-    return prisma.task.update({
-        where: { id },
-        data,
+async function update(id: string, data: Partial<CreateTaskData>, userId: string): Promise<{ success: boolean; message: string; task: Task }> {
+    const existingTask = await prisma.task.findFirst({
+        where: { id, userId },
+        select: { id: true, title: true, status: true, type: true, timezone: true }
     });
+
+    if (!existingTask) {
+        throw new Error('Tâche non trouvée ou accès non autorisé');
+    }
+
+    const updateData: any = { ...data };
+
+    // Il faut recalculer les dates si le type ou le timezone change
+    if ((data.type && data.type !== existingTask.type) || (data.timezone && data.timezone !== existingTask.timezone)) {
+        const newTimezone = data.timezone || existingTask.timezone;
+        
+        switch(data.type) {
+            case TaskType.DAILY:
+                updateData.dateStart = getStartOfDayInTimezone(newTimezone);
+                updateData.dateEnd = getEndOfDayInTimezone(newTimezone);
+                break;
+            case TaskType.WEEKLY:
+                updateData.dateStart = getStartOfWeekInTimezone(newTimezone);
+                updateData.dateEnd = getEndOfWeekInTimezone(newTimezone);
+                break;
+            case TaskType.REPEATABLE:
+                updateData.dateStart = getStartOfDayInTimezone(newTimezone);
+                break;
+            case TaskType.ONE_TIME:
+                break;
+            default:
+                throw new Error('Type de tâche invalide');
+        }
+    }
+
+    try {
+        const updatedTask = await prisma.task.update({
+            where: { id },
+            data: updateData
+        });
+
+        return {
+            success: true,
+            message: `Tâche "${existingTask.title}" mise à jour avec succès`,
+            task: updatedTask
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`Erreur lors de la mise à jour : ${error.message}`);
+        }
+        throw new Error('Erreur inconnue lors de la mise à jour');
+    }
 }
 
-async function remove(id: string): Promise<Task> {
-    return prisma.task.delete({
-        where: { id },
+async function remove(id: string, userId: string): Promise<{ success: boolean; message: string }> {
+    const existingTask = await prisma.task.findFirst({
+        where: { id, userId },
+        select: { id: true, title: true, status: true }
     });
+
+    if (!existingTask) {
+        throw new Error('Tâche non trouvée ou accès non autorisé');
+    }
+
+    try {
+        await prisma.task.delete({
+            where: { id }
+        });
+
+        return {
+            success: true,
+            message: `Tâche "${existingTask.title}" supprimée avec succès`
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`Erreur lors de la suppression : ${error.message}`);
+        }
+        throw new Error('Erreur inconnue lors de la suppression');
+    }
 }
 
 
@@ -86,5 +173,6 @@ export const taskService = {
     getMyTasks,
     create,
     update,
-    remove
+    remove,
+    completeTask
 };

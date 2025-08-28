@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {TaskDifficulty, TaskStatus, TaskType} from "../../generated/prisma";
 
 export const registerSchema = z.object({
     username: z.string()
@@ -20,6 +21,11 @@ export const loginSchema = z.object({
         .min(1, 'Le mot de passe est requis')
 });
 
+export const dateSchema = z.preprocess(
+    (arg) => (typeof arg === "string" ? new Date(arg) : arg),
+    z.date().nullable()
+);
+
 export const createTaskSchema = z.object({
     title: z.string()
         .min(1, 'Le titre est requis')
@@ -29,12 +35,12 @@ export const createTaskSchema = z.object({
         .min(1, 'La description est requise')
         .max(100, 'La description ne peut pas dépasser 100 caractères'),
     
-    status: z.enum(['PENDING', 'COMPLETED', 'TRUE_COMPLETED', 'DELETED', 'EXPIRED']).default('PENDING'),
-    type: z.enum(['DAILY', 'WEEKLY', 'ONE_TIME', 'REPEATABLE']).default('DAILY'),
-    difficulty: z.enum(['EASY', 'NORMAL', 'HARD']).default('NORMAL'),
+    status: z.enum([TaskStatus.PENDING, TaskStatus.COMPLETED, TaskStatus.TRUE_COMPLETED, TaskStatus.DELETED, TaskStatus.EXPIRED]).default(TaskStatus.PENDING),
+    type: z.enum([TaskType.DAILY, TaskType.WEEKLY, TaskType.ONE_TIME, TaskType.REPEATABLE]).default(TaskType.DAILY),
+    difficulty: z.enum([TaskDifficulty.EASY, TaskDifficulty.NORMAL, TaskDifficulty.HARD]).default(TaskDifficulty.EASY),
     timezone: z.string().default('UTC'),
-    dateStart: z.date().optional(),
-    dateEnd: z.date().optional()
+    dateStart: dateSchema,
+    dateEnd: dateSchema
 });
 
 export const taskIdSchema = z.object({

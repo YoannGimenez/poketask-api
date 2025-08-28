@@ -1,19 +1,20 @@
 import { taskController } from '../controller/taskController';
-import { authenticateJWT, checkOwnership } from '../middleware/authMiddleware';
+import { authenticateJWT } from '../middleware/authMiddleware';
 import { router } from '../config/routerConfig';
-import { createTaskSchema } from '../utils/validationSchemas';
-import { validateData } from '../middleware/validationMiddleware';
+import { createTaskSchema, taskIdSchema } from '../utils/validationSchemas';
+import { validateData, validateParams } from '../middleware/validationMiddleware';
 
 
 router.use(authenticateJWT);
 
 router.get('/my-tasks', taskController.getMyTasks);
 router.post('/', validateData(createTaskSchema), taskController.create);
+router.patch('/:id/complete',validateParams(taskIdSchema), taskController.completeTask);
+router.patch('/:id/edit', validateParams(taskIdSchema), validateData(createTaskSchema.partial()), taskController.update);
+router.delete('/:id/delete', validateParams(taskIdSchema), taskController.remove);
 
 
 
 router.get('/:id', taskController.getById);
-router.put('/:id', checkOwnership('id'), taskController.update);
-router.delete('/:id', checkOwnership('id'), taskController.remove);
 
 export default router;
