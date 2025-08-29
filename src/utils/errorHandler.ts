@@ -1,5 +1,5 @@
 import { Prisma } from '../../generated/prisma';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { formatDate } from './formatDate';
 import { ZodError } from 'zod';
 
@@ -110,16 +110,6 @@ export const handleError = (error: unknown, req: Request, res: Response, errorMe
         sendErrorResponse(res, validationError.status, validationError.error);
 
         // Handle server errors
-    } else if (error instanceof Error) {
-
-        // Log the error
-        logError('Erreur serveur', req, error.message, errorMessage);
-
-        // Send a 500 error with the error message
-        sendErrorResponse(res, 500, error.message);
-
-        // Handle unknown errors
-        
     } else if (error instanceof ZodError) {
         res.status(400).json({
             error: 'Validation échouée',
@@ -129,6 +119,14 @@ export const handleError = (error: unknown, req: Request, res: Response, errorMe
             }))
         });
         return;
+    } else if (error instanceof Error) {
+
+        // Log the error
+        logError('Erreur serveur', req, error.message, errorMessage);
+
+        // Send a 500 error with the error message
+        sendErrorResponse(res, 500, error.message);
+
     } else {
 
         // Log the error
@@ -137,4 +135,13 @@ export const handleError = (error: unknown, req: Request, res: Response, errorMe
         // Send a 500 error with a default error message
         sendErrorResponse(res, 500, 'Erreur serveur inconnue');
     }
+};
+
+export const errorMiddleware = (
+    err: unknown,
+    req: Request,
+    res: Response,
+    _next: NextFunction
+) => {
+    handleError(err, req, res);
 };

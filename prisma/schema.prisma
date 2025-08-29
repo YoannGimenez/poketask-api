@@ -49,12 +49,38 @@ enum ItemType {
   KEY
 }
 
-enum ItemRarity {
-  COMMON
-  UNCOMMON
-  RARE
-  EPIC
-  LEGENDARY
+enum Region {
+  KANTO
+  JOHTO
+  HOENN
+  SINNOH
+  UNOVA
+  KALOS
+  ALOLA
+  GALAR
+  PALDEA
+  EVENT
+}
+
+enum PokemonType {
+  NORMAL
+  FIRE
+  WATER
+  ELECTRIC
+  GRASS
+  ICE
+  FIGHTING
+  POISON
+  GROUND
+  FLYING
+  PSYCHIC
+  BUG
+  ROCK
+  GHOST
+  DARK
+  DRAGON
+  STEEL
+  FAIRY
 }
 
 model User {
@@ -97,20 +123,19 @@ model Task {
 }
 
 model Item {
-  id             Int        @id @default(autoincrement())
-  name           String
-  type           ItemType
-  description    String
-  evolvesPokemon String[]
-  buyPrice       Int
-  sellPrice      Int
-  levelUnlock    Int
-  catchRate      Float
-  rarity         ItemRarity @default(COMMON)
+  id               Int      @id @default(autoincrement())
+  name             String   @unique
+  type             ItemType
+  description      String
+  evolvesPokemon   String[]
+  buyPrice         Int
+  sellPrice        Int
+  levelUnlock      Int
+  catchChanceBonus Float    @default(0)
 
   userItems UserItem[]
 
-  Location Location[]
+  EncounterItem EncounterItem[]
 }
 
 model Currency {
@@ -122,35 +147,54 @@ model Currency {
 }
 
 model Pokemon {
-  id             Int      @id @default(autoincrement())
-  pokedexId      Int      @unique
-  name           String   @unique
-  type1          String
-  type2          String?
+  id             Int           @id @default(autoincrement())
+  pokedexId      Int           @unique
+  name           String        @unique
+  types          PokemonType[]
   spriteUrl      String
   shinySpriteUrl String?
   evolvesInto    String[]
   evolvesFrom    String?
   levelEvolve    Int?
-  catchChance    Float
+  catchChance    Int
 
   userPokemons UserPokemon[]
 
-  location Location[]
+  encounters EncounterPokemon[]
 }
 
 model Location {
   id       Int    @id @default(autoincrement())
   name     String @unique
-  region   String
-  levelMin Int
-  levelMax Int
+  region   Region
   moneyMin Int
   moneyMax Int
 
-  pokemons      Pokemon[]
-  items         Item[]
-  userLocations UserLocation[]
+  encounterPokemon EncounterPokemon[]
+  encounterItem    EncounterItem[]
+  userLocations    UserLocation[]
+}
+
+model EncounterPokemon {
+  id              Int   @id @default(autoincrement())
+  encounterChance Float
+
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId Int
+
+  pokemon   Pokemon @relation(fields: [pokemonId], references: [id])
+  pokemonId Int
+}
+
+model EncounterItem {
+  id              Int   @id @default(autoincrement())
+  encounterChance Float
+
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId Int
+
+  item   Item @relation(fields: [itemId], references: [id])
+  itemId Int
 }
 
 model UserLocation {

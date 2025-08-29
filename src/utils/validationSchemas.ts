@@ -51,6 +51,14 @@ export const userIdSchema = z.object({
     id: z.uuid('ID d\'utilisateur invalide')
 });
 
+export const locationIdSchema = z.object({
+    id: z.string('ID de localisation invalide')
+});
+
+export const pokemonIdSchema = z.object({
+    id: z.string('ID de pokémon invalide')
+});
+
 export const updateTaskSchema = createTaskSchema.partial();
 
 export type RegisterData = z.infer<typeof registerSchema>;
@@ -59,3 +67,5 @@ export type CreateTaskData = z.infer<typeof createTaskSchema>;
 export type UpdateTaskData = z.infer<typeof updateTaskSchema>;
 export type TaskIdParams = z.infer<typeof taskIdSchema>;
 export type UserIdParams = z.infer<typeof userIdSchema>;
+export type LocationIdParams = z.infer<typeof locationIdSchema>;
+export type PokemonIdParams = z.infer<typeof pokemonIdSchema>;
