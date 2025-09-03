@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import {Task, TaskStatus, TaskType} from "../../generated/prisma";
+import {Task, TaskDifficulty, TaskStatus, TaskType, User} from "../../generated/prisma";
 import { CreateTaskData } from '../utils/validationSchemas';
 import { getStartOfDayInTimezone, getEndOfDayInTimezone, getStartOfWeekInTimezone, getEndOfWeekInTimezone } from '../utils/dateUtils';
 
@@ -24,19 +24,54 @@ async function getMyTasks(userId: string): Promise<Task[]> {
     });
 }
 
-async function completeTask(id: string, userId: string): Promise<Task> {
+async function completeTask(id: string, userId: string): Promise<any> {
     const existingTask = await prisma.task.findFirst({
-        where: { id, userId }
+        where: { id, userId },
+        include: {
+            user: true
+        }
     });
 
     if (!existingTask) {
         throw new Error('Tâche non trouvée ou accès non autorisé');
     }
 
-    return prisma.task.update({
+    if (existingTask.status === TaskStatus.COMPLETED || existingTask.status === TaskStatus.TRUE_COMPLETED) {
+        throw new Error('Tâche déjà complétée');
+    }
+
+    let newStatus: TaskStatus = TaskStatus.COMPLETED;
+
+    if (existingTask.type === TaskType.REPEATABLE || existingTask.type === TaskType.ONE_TIME) {
+        newStatus = TaskStatus.TRUE_COMPLETED;
+    }
+
+    const completedTask = await prisma.task.update({
         where: { id },
-        data: { status: 'COMPLETED' }
+        data: { status: newStatus }
     });
+
+    if (existingTask.type === TaskType.REPEATABLE) {
+        await prisma.task.create({
+            data: {
+                title: existingTask.title,
+                description: existingTask.description,
+                status: TaskStatus.PENDING,
+                type: existingTask.type,
+                difficulty: existingTask.difficulty,
+                timezone: existingTask.timezone,
+                userId: existingTask.userId,
+                dateStart: getStartOfDayInTimezone(existingTask.timezone),
+            }
+        });
+    }
+
+    const updatedUser = await gainExperience(existingTask.user, existingTask.difficulty)
+
+    return {
+        completedTask: completedTask,
+        user: updatedUser
+    }
 }
 
 async function create(data: CreateTaskData, userId: string): Promise<Task> {
@@ -166,6 +201,66 @@ async function remove(id: string, userId: string): Promise<{ success: boolean; m
     }
 }
 
+async function gainExperience(user: User, taskDifficulty: TaskDifficulty): Promise<{}> {
+
+    let experienceGain: number;
+    switch (taskDifficulty) {
+        case TaskDifficulty.EASY:
+            experienceGain = 25;
+            break;
+        case TaskDifficulty.NORMAL:
+            experienceGain = 100;
+            break;
+        case TaskDifficulty.HARD:
+            experienceGain = 250;
+            break;
+        default:
+            experienceGain = 0;
+    }
+
+    const { newExperience, newLevel, newNextLevelExp, leveledUp } = calculateLevelProgression(user, experienceGain);
+
+    const updateData: any = {
+        experience: newExperience,
+    };
+
+    if (leveledUp) {
+        updateData.level = newLevel;
+        updateData.nextLevelExperience = newNextLevelExp;
+    }
+
+    const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: updateData,
+    });
+
+    return {
+        leveledUp,
+        updatedUser,
+    };
+}
+
+function calculateLevelProgression(user: User, experienceGain: number): any {
+    let newExperience = user.experience + experienceGain;
+    let newLevel = user.level;
+    let nextLevelExp = user.nextLevelExperience;
+    let leveledUp = false;
+
+    while (newExperience >= nextLevelExp) {
+        newExperience -= nextLevelExp;
+        newLevel += 1;
+        nextLevelExp = Math.floor(nextLevelExp * 1.5);
+        leveledUp = true;
+    }
+
+    return {
+        newExperience,
+        newLevel,
+        newNextLevelExp: nextLevelExp,
+        leveledUp,
+    };
+}
+
 
 export const taskService = {
     getAll,
@@ -174,5 +269,5 @@ export const taskService = {
     create,
     update,
     remove,
-    completeTask
+    completeTask,
 };

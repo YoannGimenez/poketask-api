@@ -150,7 +150,7 @@ async function completeTask(req: Request, res: Response, next: NextFunction): Pr
         const task = await taskService.completeTask(taskId, userId);
         res.status(200).json({ 
             message: 'Tâche marquée comme complétée',
-            task 
+            ...task
         });
     } catch (err) {
         if (err instanceof Error) {
