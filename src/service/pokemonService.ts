@@ -1,5 +1,5 @@
 import prisma from "../lib/prisma";
-import {EncounterItem} from "../../generated/prisma";
+import {EncounterItem, User} from "../../generated/prisma";
 
 async function catchPokemon(
     pokemonId: number,
@@ -143,7 +143,91 @@ async function getUserPokemons(userId: string) {
     });
 }
 
+async function checkForEvolutions(user: User) {
+    const userPokemons = await prisma.userPokemon.findMany({
+        where: { userId: user.id },
+        include: { pokemon: true },
+    });
+
+    // Map d'accès rapide aux données, éviter un call db par pokémon
+    const allPokemons = await prisma.pokemon.findMany();
+    const pokemonByName = new Map(allPokemons.map(p => [p.name, p]));
+    const ownedPokemonMap = new Map(userPokemons.map(up => [up.pokemonId, up]));
+
+    const evolutions: {
+        basePokemonName: string;
+        evolvedPokemonName: string;
+        evolvedPokemonSpriteUrl: string;
+    }[] = [];
+
+    for (const up of userPokemons) {
+        const basePokemon = up.pokemon;
+
+        if (!basePokemon.levelEvolve || !basePokemon.evolvesInto.length) continue;
+
+        if (user.level >= basePokemon.levelEvolve) {
+            for (const evoName of basePokemon.evolvesInto) {
+                const evoPokemon = pokemonByName.get(evoName);
+                if (!evoPokemon) continue;
+
+                const ownedEvo = ownedPokemonMap.get(evoPokemon.id);
+
+                if (!ownedEvo) {
+                    await prisma.userPokemon.create({
+                        data: {
+                            userId: user.id,
+                            pokemonId: evoPokemon.id,
+                            amountCaught: 1,
+                            shiny: up.shiny,
+                        },
+                    });
+
+                    ownedPokemonMap.set(evoPokemon.id, {
+                        ...up,
+                        id: -1,
+                        pokemon: evoPokemon,
+                        pokemonId: evoPokemon.id,
+                        amountCaught: 1,
+                        shiny: up.shiny,
+                    });
+
+                    evolutions.push({
+                        basePokemonName: basePokemon.name,
+                        evolvedPokemonName: evoPokemon.name,
+                        evolvedPokemonSpriteUrl: up.shiny
+                            ? evoPokemon.shinySpriteUrl
+                            : evoPokemon.spriteUrl,
+                    });
+                } else {
+                    if (up.shiny && !ownedEvo.shiny) {
+                        await prisma.userPokemon.update({
+                            where: { id: ownedEvo.id },
+                            data: { shiny: true },
+                        });
+                        ownedEvo.shiny = true;
+
+                        evolutions.push({
+                            basePokemonName: basePokemon.name,
+                            evolvedPokemonName: evoPokemon.name,
+                            evolvedPokemonSpriteUrl: up.shiny
+                                ? evoPokemon.shinySpriteUrl
+                                : evoPokemon.spriteUrl,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    return evolutions;
+}
+
+
+
+
+
 export const pokemonService = {
     catchPokemon,
-    getUserPokemons
+    getUserPokemons,
+    checkForEvolutions,
 };

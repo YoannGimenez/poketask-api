@@ -2,6 +2,7 @@ import prisma from '../lib/prisma';
 import {Task, TaskDifficulty, TaskStatus, TaskType, User} from "../../generated/prisma";
 import { CreateTaskData } from '../utils/validationSchemas';
 import { getStartOfDayInTimezone, getEndOfDayInTimezone, getStartOfWeekInTimezone, getEndOfWeekInTimezone } from '../utils/dateUtils';
+import {pokemonService} from "./pokemonService";
 
 async function getAll(): Promise<Task[]> {
     return prisma.task.findMany();
@@ -234,9 +235,15 @@ async function gainExperience(user: User, taskDifficulty: TaskDifficulty): Promi
         data: updateData,
     });
 
+    let evolvedPokemons: { basePokemonName: string; evolvedPokemonName: string; evolvedPokemonSpriteUrl: string; }[] = [];
+    if (leveledUp) {
+        evolvedPokemons = await pokemonService.checkForEvolutions(updatedUser);
+    }
+
     return {
         leveledUp,
         updatedUser,
+        evolvedPokemons
     };
 }
 

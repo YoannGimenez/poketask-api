@@ -164,7 +164,7 @@ model Pokemon {
   name           String        @unique
   types          PokemonType[]
   spriteUrl      String
-  shinySpriteUrl String?
+  shinySpriteUrl String
   evolvesInto    String[]
   evolvesFrom    String?
   levelEvolve    Int?
