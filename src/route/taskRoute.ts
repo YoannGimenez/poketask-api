@@ -1,9 +1,10 @@
 import { taskController } from '../controller/taskController';
 import { authenticateJWT } from '../middleware/authMiddleware';
-import { router } from '../config/routerConfig';
 import { createTaskSchema, taskIdSchema } from '../utils/validationSchemas';
 import { validateData, validateParams } from '../middleware/validationMiddleware';
+import { Router } from 'express';
 
+const router = Router();
 
 router.use(authenticateJWT);
 

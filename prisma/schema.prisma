@@ -83,6 +83,17 @@ enum PokemonType {
   FAIRY
 }
 
+enum LocationType {
+  CITY
+  ROUTE
+  CAVE
+  FOREST
+  MOUNTAIN
+  BEACH
+  ISLAND
+  SPECIAL
+}
+
 model User {
   id                  String     @id @default(uuid())
   username            String     @unique
@@ -127,6 +138,7 @@ model Item {
   name             String   @unique
   type             ItemType
   description      String
+  spriteUrl        String
   evolvesPokemon   String[]
   buyPrice         Int
   sellPrice        Int
@@ -164,11 +176,12 @@ model Pokemon {
 }
 
 model Location {
-  id       Int    @id @default(autoincrement())
-  name     String @unique
+  id       Int          @id @default(autoincrement())
+  name     String       @unique
   region   Region
   moneyMin Int
   moneyMax Int
+  type     LocationType @default(ROUTE)
 
   encounterPokemon EncounterPokemon[]
   encounterItem    EncounterItem[]

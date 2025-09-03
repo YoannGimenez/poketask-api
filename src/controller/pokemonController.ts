@@ -22,6 +22,17 @@ async function catchPokemon(req: Request, res: Response, next: NextFunction): Pr
     }
 }
 
+async function getUserPokemons(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const userId = (req.user as { id: string }).id;
+        const userPokemons = await pokemonService.getUserPokemons(userId);
+        res.status(200).json({ userPokemons });
+    } catch (err) {
+        next(err);
+    }
+}
+
 export const pokemonController = {
-    catchPokemon
+    catchPokemon,
+    getUserPokemons
 };

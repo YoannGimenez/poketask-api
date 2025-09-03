@@ -8,6 +8,8 @@ interface EncounterResult {
 
 async function encounterPokemon(locationId: number): Promise<EncounterResult | null> {
 
+    console.log("Encountering pokemon at location:", locationId);
+
     const encountersList = await prisma.encounterPokemon.findMany({
         where: { locationId }
     });
@@ -39,6 +41,23 @@ async function encounterPokemon(locationId: number): Promise<EncounterResult | n
     return null;
 }
 
+async function getUserLocations(userId: string) {
+    const userLocations = await prisma.userLocation.findMany({
+        where: { userId },
+        include: {
+            location: true,
+        },
+    });
+
+    return userLocations.map((userLocation) => ({
+        locationId: userLocation.locationId,
+        name: userLocation.location.name,
+        type: userLocation.location.type,
+        region: userLocation.location.region,
+    }));
+}
+
 export const locationService = {
-    encounterPokemon
+    encounterPokemon,
+    getUserLocations
 };

@@ -1,9 +1,9 @@
 import prisma from "../lib/prisma";
-import { EncounterItem } from "../../generated/prisma";
+import {EncounterItem} from "../../generated/prisma";
 
 async function catchPokemon(
-    locationId: number,
     pokemonId: number,
+    locationId: number,
     itemId: number,
     userId: string,
     isShiny: boolean
@@ -85,37 +85,19 @@ async function catchPokemon(
     });
 
     if (isCaptured) {
-        const existing = await prisma.userPokemon.findUnique({
+        await prisma.userPokemon.upsert({
             where: { userId_pokemonId: { userId, pokemonId } },
+            create: {
+                userId,
+                pokemonId,
+                amountCaught: 1,
+                shiny: isShiny,
+            },
+            update: {
+                amountCaught: { increment: 1 },
+                ...(isShiny ? { shiny: true } : {})
+            },
         });
-
-        if (!existing) {
-            await prisma.userPokemon.create({
-                data: {
-                    userId,
-                    pokemonId,
-                    amountCaught: { increment: 1 },
-                    shiny: isShiny,
-                },
-            });
-        } else {
-            if (!existing.shiny && isShiny) {
-                await prisma.userPokemon.update({
-                    where: { userId_pokemonId: { userId, pokemonId } },
-                    data: {
-                        shiny: true,
-                        amountCaught: { increment: 1 },
-                    },
-                });
-            } else {
-                await prisma.userPokemon.update({
-                    where: { userId_pokemonId: { userId, pokemonId } },
-                    data: {
-                        amountCaught: { increment: 1 },
-                    },
-                });
-            }
-        }
     }
 
     return {
@@ -126,6 +108,42 @@ async function catchPokemon(
     };
 }
 
+async function getUserPokemons(userId: string) {
+
+    const higherIdCaught = await prisma.userPokemon.findFirst({
+        where: { userId, amountCaught: { gt: 0 } },
+        orderBy: { pokemon: { pokedexId: "desc" } },
+        select: { pokemon: { select: { pokedexId: true } } },
+    });
+
+    const pokedex = await prisma.pokemon.findMany({
+        where: {
+            pokedexId: { lte: higherIdCaught?.pokemon.pokedexId ?? 0 },
+        },
+        orderBy: { pokedexId: "asc" },
+        include: {
+            userPokemons: {
+                where: { userId },
+                select: { amountCaught: true, shiny: true },
+            },
+        },
+    });
+
+    return pokedex.map(p => {
+        const userData = p.userPokemons[0];
+
+        return {
+            pokedexId: p.pokedexId,
+            name: p.name,
+            types: p.types,
+            spriteUrl: p.spriteUrl,
+            shiny: userData?.shiny ?? false,
+            amountCaught: userData?.amountCaught ?? 0,
+        };
+    });
+}
+
 export const pokemonService = {
     catchPokemon,
+    getUserPokemons
 };
