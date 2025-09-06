@@ -10,5 +10,7 @@ router.use(authenticateJWT);
 
 router.post('/:id/catch', validateParams(pokemonIdSchema), pokemonController.catchPokemon);
 router.get('/my-pokemons', pokemonController.getUserPokemons);
+router.get('/starters', pokemonController.getStarters);
+router.post('/add-starter', pokemonController.addPokemon);
 
 export default router;

@@ -222,12 +222,48 @@ async function checkForEvolutions(user: User) {
     return evolutions;
 }
 
+async function getStarters() {
+    const starters = await prisma.pokemon.findMany({
+        where: {
+            pokedexId: { in: [1, 4, 7] }
+        },
+        orderBy: { pokedexId: 'asc' },
+    });
+    return starters;
+}
 
+async function addPokemon(userId: string, pokemonId: number) {
+    const pokemon = await prisma.pokemon.findUnique({ where: { id: pokemonId } });
+    if (!pokemon) {
+        console.log("Pokemon introuvable", pokemonId);
+        throw new Error("Pokemon introuvable");
+    }
 
+    await prisma.userPokemon.upsert({
+        where: { userId_pokemonId: { userId, pokemonId } },
+        create: {
+            userId,
+            pokemonId,
+            amountCaught: 1,
+            shiny: false,
+        },
+        update: {
+            amountCaught: { increment: 1 },
+        },
+    });
+
+    return {
+        success: true,
+        message: `${pokemon.name} ajouté à votre collection !`,
+        pokemon,
+    };
+}
 
 
 export const pokemonService = {
     catchPokemon,
     getUserPokemons,
     checkForEvolutions,
+    getStarters,
+    addPokemon
 };

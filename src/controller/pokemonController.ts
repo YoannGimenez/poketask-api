@@ -32,7 +32,40 @@ async function getUserPokemons(req: Request, res: Response, next: NextFunction):
     }
 }
 
+async function getStarters(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const starters = await pokemonService.getStarters();
+        res.status(200).json({ starters });
+    } catch (err) {
+        next(err);
+    }
+}
+
+async function addPokemon(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        console.log("addPokemon called with body:", req.body);
+        const userId = (req.user as { id: string }).id;
+        const { pokemonId } = req.body;
+        if (!pokemonId || isNaN(pokemonId) || pokemonId <= 0) {
+            console.log("Invalid pokemonId:", pokemonId);
+            res.status(400).json({
+                success: false,
+                error: 'ID de starter invalide. Doit être un nombre positif.'
+            });
+            return;
+        }
+
+        const result = await pokemonService.addPokemon(userId, pokemonId);
+        console.log("addPokemon result:", result);
+        res.status(200).json(result);
+    } catch (err) {
+        next(err);
+    }
+    }
+
 export const pokemonController = {
     catchPokemon,
-    getUserPokemons
+    getUserPokemons,
+    getStarters,
+    addPokemon
 };
