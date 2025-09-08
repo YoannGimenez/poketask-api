@@ -1,17 +1,30 @@
 import prisma from '../lib/prisma';
 import {Task, TaskDifficulty, TaskStatus, TaskType, User} from "../../generated/prisma";
-import { CreateTaskData } from '../utils/validationSchemas';
-import { getStartOfDayInTimezone, getEndOfDayInTimezone, getStartOfWeekInTimezone, getEndOfWeekInTimezone } from '../utils/dateUtils';
+import {CreateTaskData} from '../utils/validationSchemas';
+import {
+    getEndOfDayInTimezone,
+    getEndOfWeekInTimezone,
+    getStartOfDayInTimezone,
+    getStartOfWeekInTimezone
+} from '../utils/dateUtils';
 import {pokemonService} from "./pokemonService";
+import {ApiError} from "../utils/ApiError";
 
-async function getAll(): Promise<Task[]> {
-    return prisma.task.findMany();
-}
+export type TaskWithUser = Task & { user: User };
 
-async function getById(id: string): Promise<Task | null> {
-    return prisma.task.findUnique({
-        where: { id },
+async function getTaskByIdAndUserIdOrThrow(id: string, userId: string): Promise<TaskWithUser> {
+    const task = await prisma.task.findFirst({
+        where: { id, userId },
+        include: {
+            user: true
+        }
     });
+
+    if (!task) {
+        throw new ApiError(404, "Tâche non trouvée", "TASK_NOT_FOUND");
+    }
+
+    return task;
 }
 
 async function getMyTasks(userId: string): Promise<Task[]> {
@@ -26,26 +39,16 @@ async function getMyTasks(userId: string): Promise<Task[]> {
 }
 
 async function completeTask(id: string, userId: string): Promise<any> {
-    const existingTask = await prisma.task.findFirst({
-        where: { id, userId },
-        include: {
-            user: true
-        }
-    });
 
-    if (!existingTask) {
-        throw new Error('Tâche non trouvée ou accès non autorisé');
-    }
+    const existingTask = await getTaskByIdAndUserIdOrThrow(id, userId);
 
     if (existingTask.status === TaskStatus.COMPLETED || existingTask.status === TaskStatus.TRUE_COMPLETED) {
-        throw new Error('Tâche déjà complétée');
+        throw new ApiError(400, 'Tâche déjà complétée', 'TASK_ALREADY_COMPLETED');
     }
 
-    let newStatus: TaskStatus = TaskStatus.COMPLETED;
-
-    if (existingTask.type === TaskType.REPEATABLE || existingTask.type === TaskType.ONE_TIME) {
-        newStatus = TaskStatus.TRUE_COMPLETED;
-    }
+    const newStatus: TaskStatus = existingTask.type === TaskType.REPEATABLE || existingTask.type === TaskType.ONE_TIME
+            ? TaskStatus.TRUE_COMPLETED
+            : TaskStatus.COMPLETED;
 
     const completedTask = await prisma.task.update({
         where: { id },
@@ -53,18 +56,7 @@ async function completeTask(id: string, userId: string): Promise<any> {
     });
 
     if (existingTask.type === TaskType.REPEATABLE) {
-        await prisma.task.create({
-            data: {
-                title: existingTask.title,
-                description: existingTask.description,
-                status: TaskStatus.PENDING,
-                type: existingTask.type,
-                difficulty: existingTask.difficulty,
-                timezone: existingTask.timezone,
-                userId: existingTask.userId,
-                dateStart: getStartOfDayInTimezone(existingTask.timezone),
-            }
-        });
+        await recreate(existingTask);
     }
 
     const updatedUser = await gainExperience(existingTask.user, existingTask.difficulty)
@@ -73,6 +65,21 @@ async function completeTask(id: string, userId: string): Promise<any> {
         completedTask: completedTask,
         user: updatedUser
     }
+}
+
+function recreate(task: TaskWithUser): Promise<Task> {
+    return prisma.task.create({
+        data: {
+            title: task.title,
+            description: task.description,
+            status: TaskStatus.PENDING,
+            type: task.type,
+            difficulty: task.difficulty,
+            timezone: task.timezone,
+            userId: task.userId,
+            dateStart: getStartOfDayInTimezone(task.timezone),
+        },
+    });
 }
 
 async function create(data: CreateTaskData, userId: string): Promise<Task> {
@@ -121,7 +128,7 @@ async function create(data: CreateTaskData, userId: string): Promise<Task> {
     });
 }
 
-async function update(id: string, data: Partial<CreateTaskData>, userId: string): Promise<{ success: boolean; message: string; task: Task }> {
+async function update(id: string, data: Partial<CreateTaskData>, userId: string): Promise<Task> {
     const existingTask = await prisma.task.findFirst({
         where: { id, userId },
         select: { id: true, title: true, status: true, type: true, timezone: true }
@@ -157,16 +164,11 @@ async function update(id: string, data: Partial<CreateTaskData>, userId: string)
     }
 
     try {
-        const updatedTask = await prisma.task.update({
-            where: { id },
+        return await prisma.task.update({
+            where: {id},
             data: updateData
         });
 
-        return {
-            success: true,
-            message: `Tâche "${existingTask.title}" mise à jour avec succès`,
-            task: updatedTask
-        };
     } catch (error) {
         if (error instanceof Error) {
             throw new Error(`Erreur lors de la mise à jour : ${error.message}`);
@@ -270,8 +272,6 @@ function calculateLevelProgression(user: User, experienceGain: number): any {
 
 
 export const taskService = {
-    getAll,
-    getById,
     getMyTasks,
     create,
     update,

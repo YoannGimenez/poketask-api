@@ -14,8 +14,4 @@ router.patch('/:id/complete',validateParams(taskIdSchema), taskController.comple
 router.patch('/:id/edit', validateParams(taskIdSchema), validateData(createTaskSchema.partial()), taskController.update);
 router.delete('/:id/delete', validateParams(taskIdSchema), taskController.remove);
 
-
-
-router.get('/:id', taskController.getById);
-
 export default router;

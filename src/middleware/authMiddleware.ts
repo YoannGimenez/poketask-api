@@ -13,20 +13,3 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
         next();
     })(req, res, next);
 }
-
-export function checkOwnership(fieldName: string = 'userId') {
-    return (req: Request, res: Response, next: NextFunction): void => {
-        if (!req.user) {
-            res.status(401).json({ error: 'Authentification requise' });
-            return;
-        }
-        
-        const resourceUserId = req.params[fieldName] || req.body[fieldName];
-        if (resourceUserId !== (req.user as any).id) {
-            res.status(403).json({ error: 'Accès non autorisé' });
-            return;
-        }
-        
-        next();
-    };
-}

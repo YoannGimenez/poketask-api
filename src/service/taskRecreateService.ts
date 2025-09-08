@@ -12,8 +12,6 @@ export async function regenerateExpiredTasks(): Promise<{ processed: number; reg
     let hasMore = true;
     let skip = 0;
 
-    console.log('Début de la régénération des tâches expirées...');
-
     while (hasMore) {
         try {
             const tasksToCheck = await prisma.task.findMany({
@@ -45,15 +43,11 @@ export async function regenerateExpiredTasks(): Promise<{ processed: number; reg
                 break;
             }
 
-            console.log(`Traitement du batch ${Math.floor(skip / BATCH_SIZE) + 1}: ${tasksToCheck.length} tâches`);
-
-            // Traiter chaque tâche du batch
             for (const task of tasksToCheck) {
                 try {
                     if (shouldRecreateTask(task.dateEnd!, task.timezone)) {
 
                         const newDates = calculateNewTaskDates(task.type as TaskType, task.timezone);
-
 
                         const taskData = {
                             title: task.title,
@@ -68,18 +62,14 @@ export async function regenerateExpiredTasks(): Promise<{ processed: number; reg
 
                         await taskService.create(taskData, task.userId);
 
-                        
                         const newStatus = task.status === TaskStatus.COMPLETED ? TaskStatus.TRUE_COMPLETED : TaskStatus.EXPIRED;
 
-
-                        // Marquer l'ancienne tâche comme expirée
                         await prisma.task.update({
                             where: { id: task.id },
                             data: { status: newStatus }
                         });
 
                         totalRegenerated++;
-                        console.log(`Tâche régénérée: ${task.title} (ID: ${task.id})`);
                     }
                 } catch (error) {
                     console.error(`Erreur lors du traitement de la tâche ${task.id}:`, error);
@@ -108,31 +98,5 @@ export async function regenerateExpiredTasks(): Promise<{ processed: number; reg
         processed: totalProcessed,
         regenerated: totalRegenerated,
         errors: totalErrors
-    };
-}
-
-// Fonction pour vérifier le statut de la régénération
-export async function getRegenerationStatus(): Promise<{
-    lastRun: Date | null;
-    totalTasks: number;
-    pendingTasks: number;
-    completedTasks: number;
-    expiredTasks: number;
-}> {
-    const [totalTasks, pendingTasks, completedTasks, expiredTasks] = await Promise.all([
-        prisma.task.count(),
-        prisma.task.count({ where: { status: 'PENDING' } }),
-        prisma.task.count({ where: { status: 'COMPLETED' } }),
-        prisma.task.count({ where: { status: 'TRUE_COMPLETED' } }),
-        prisma.task.count({ where: { status: 'EXPIRED' } }),
-        prisma.task.count({ where: { status: 'DELETED' } })
-    ]);
-
-    return {
-        lastRun: new Date(),
-        totalTasks,
-        pendingTasks,
-        completedTasks,
-        expiredTasks
     };
 }

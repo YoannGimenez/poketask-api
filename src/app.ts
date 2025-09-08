@@ -4,8 +4,8 @@ import configMiddleware from "./middleware/configMiddleware";
 import authRoute from './route/authRoute';
 import locationRoute from "./route/locationRoute";
 import pokemonRoute from "./route/pokemonRoute";
-import {errorMiddleware} from "./utils/errorHandler";
 import itemRoute from "./route/itemRoute";
+import {errorHandler} from "./middleware/errorHandlerMiddleware";
 
 const app = express();
 
@@ -17,6 +17,6 @@ app.use('/api/location', locationRoute);
 app.use('/api/pokemon', pokemonRoute);
 app.use('/api/item', itemRoute);
 
-app.use(errorMiddleware);
+app.use(errorHandler);
 
 export { app };

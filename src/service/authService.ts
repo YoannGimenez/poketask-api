@@ -2,6 +2,7 @@ import prisma from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../../generated/prisma';
+import {ApiError} from "../utils/ApiError";
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
@@ -50,12 +51,12 @@ async function login(data: LoginData): Promise<{ user: Omit<User, 'password'>; t
     });
 
     if (!user) {
-        throw new Error('Email ou mot de passe incorrect');
+        throw new ApiError(401, 'Email ou mot de passe incorrect', 'INVALID_CREDENTIALS');
     }
 
     const isValidPassword = bcrypt.compareSync(data.password, user.password);
     if (!isValidPassword) {
-        throw new Error('Email ou mot de passe incorrect');
+        throw new ApiError(401, 'Email ou mot de passe incorrect', 'INVALID_CREDENTIALS');
     }
 
     await prisma.user.update({

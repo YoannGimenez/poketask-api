@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { regenerateExpiredTasks, getRegenerationStatus } from '../service/taskRecreateService';
+import { regenerateExpiredTasks } from '../service/taskRecreateService';
 
 let isRunning = false;
 let lastRun: Date | null = null;

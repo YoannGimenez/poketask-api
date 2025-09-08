@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../service/authService';
+import {ApiError} from "../utils/ApiError";
 
 async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -21,36 +22,23 @@ async function register(req: Request, res: Response, next: NextFunction): Promis
             user 
         });
     } catch (err) {
-        if (err instanceof Error) {
-            res.status(400).json({ error: err.message });
-        } else {
-            next(err);
-        }
+        next(err);
     }
 }
 
 async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
         const { email, password } = req.body;
-        console.log("Login attempt:", email);
-
-        if (!email || !password) {
-            res.status(400).json({ error: 'Email et mot de passe requis' });
-            return;
-        }
 
         const result = await authService.login({ email, password });
+
         res.status(200).json({
             message: 'Connexion réussie',
             user: result.user,
             token: result.token
         });
     } catch (err) {
-        if (err instanceof Error) {
-            res.status(401).json({ error: err.message });
-        } else {
-            next(err);
-        }
+        next(err);
     }
 }
 
