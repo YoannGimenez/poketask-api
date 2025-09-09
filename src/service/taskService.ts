@@ -12,6 +12,16 @@ import {ApiError} from "../utils/ApiError";
 
 export type TaskWithUser = Task & { user: User };
 
+type GainExperienceResult = {
+    leveledUp: boolean;
+    updatedUser: User;
+    evolvedPokemons: {
+        basePokemonName: string;
+        evolvedPokemonName: string;
+        evolvedPokemonSpriteUrl: string;
+    }[];
+};
+
 async function getTaskByIdAndUserIdOrThrow(id: string, userId: string): Promise<TaskWithUser> {
     const task = await prisma.task.findFirst({
         where: { id, userId },
@@ -59,12 +69,32 @@ async function completeTask(id: string, userId: string): Promise<any> {
         await recreate(existingTask);
     }
 
-    const updatedUser = await gainExperience(existingTask.user, existingTask.difficulty)
+    const { leveledUp, updatedUser, evolvedPokemons } = await gainExperience(
+        existingTask.user,
+        existingTask.difficulty
+    );
+
+    const completedTasksCount = await prisma.task.count({
+        where: {
+            userId,
+            status: { in: [TaskStatus.COMPLETED, TaskStatus.TRUE_COMPLETED] }
+        }
+    });
+
+    const pokemonsCount = await prisma.userPokemon.count({
+        where: { userId }
+    });
 
     return {
-        completedTask: completedTask,
-        user: updatedUser
-    }
+        completedTask,
+        user: {
+            ...updatedUser,
+            completedTasksCount,
+            pokemonsCount
+        },
+        leveledUp,
+        evolvedPokemons
+    };
 }
 
 function recreate(task: TaskWithUser): Promise<Task> {
@@ -204,7 +234,7 @@ async function remove(id: string, userId: string): Promise<{ success: boolean; m
     }
 }
 
-async function gainExperience(user: User, taskDifficulty: TaskDifficulty): Promise<{}> {
+async function gainExperience(user: User, taskDifficulty: TaskDifficulty): Promise<GainExperienceResult> {
 
     let experienceGain: number;
     switch (taskDifficulty) {

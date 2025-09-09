@@ -7,7 +7,10 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
             return next(err);
         }
         if (!user) {
-            return res.status(401).json({ error: 'Token invalide ou expiré' });
+            return next({
+                status: 401,
+                message: 'Token invalide ou expiré'
+            });
         }
         req.user = user;
         next();

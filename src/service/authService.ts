@@ -1,7 +1,7 @@
 import prisma from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User } from '../../generated/prisma';
+import {TaskStatus, User} from '../../generated/prisma';
 import {ApiError} from "../utils/ApiError";
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
@@ -45,7 +45,7 @@ async function register(data: RegisterData): Promise<Omit<User, 'password'>> {
     return userWithoutPassword;
 }
 
-async function login(data: LoginData): Promise<{ user: Omit<User, 'password'>; token: string }> {
+async function login(data: LoginData): Promise<{ user: any; token: string }> {
     const user = await prisma.user.findUnique({
         where: { email: data.email }
     });
@@ -70,8 +70,26 @@ async function login(data: LoginData): Promise<{ user: Omit<User, 'password'>; t
         { expiresIn: '7d' }
     );
 
+    const completedTasksCount = await prisma.task.count({
+        where: {
+            userId: user.id,
+            status: { in: [TaskStatus.COMPLETED, TaskStatus.TRUE_COMPLETED] }
+        }
+    });
+
+    const pokemonsCount = await prisma.userPokemon.count({
+        where: { userId: user.id }
+    });
+
     const { password, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword, token };
+    return {
+        user: {
+            ...userWithoutPassword,
+            completedTasksCount,
+            pokemonsCount
+        },
+        token
+    };
 }
 
 async function getProfile(userId: string): Promise<Omit<User, 'password'> | null> {
@@ -85,7 +103,7 @@ async function getProfile(userId: string): Promise<Omit<User, 'password'> | null
     return userWithoutPassword;
 }
 
-async function verifyAndRefreshToken(token: string): Promise<{ user: Omit<User, 'password'>; token: string; isNew: boolean }> {
+async function verifyAndRefreshToken(token: string): Promise<{ user: any; token: string; isNew: boolean }> {
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as any;
         
@@ -118,8 +136,27 @@ async function verifyAndRefreshToken(token: string): Promise<{ user: Omit<User, 
             data: { lastLogin: new Date() }
         });
 
+        const completedTasksCount = await prisma.task.count({
+            where: {
+                userId: user.id,
+                status: { in: [TaskStatus.COMPLETED, TaskStatus.TRUE_COMPLETED] }
+            }
+        });
+
+        const pokemonsCount = await prisma.userPokemon.count({
+            where: { userId: user.id }
+        });
+
         const { password, ...userWithoutPassword } = user;
-        return { user: userWithoutPassword, token: newToken, isNew };
+        return {
+            user: {
+                ...userWithoutPassword,
+                completedTasksCount,
+                pokemonsCount
+            },
+            token: newToken,
+            isNew
+        };
     } catch (error) {
         if (error instanceof jwt.JsonWebTokenError) {
             throw new Error('Token invalide');

@@ -1,17 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../service/authService';
-import {ApiError} from "../utils/ApiError";
+import {addLog} from "../utils/logger";
 
 async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
         const { username, email, password } = req.body;
 
         if (!username || !email || !password) {
+            await addLog('/api/auth/register', false, req.body, undefined, 'Champs manquants');
             res.status(400).json({ error: 'Tous les champs sont requis' });
             return;
         }
 
         if (password.length < 6) {
+            await addLog('/api/auth/register', false, req.body, undefined, 'Mot de passe trop court');
             res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères' });
             return;
         }

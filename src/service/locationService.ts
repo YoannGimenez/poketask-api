@@ -1,14 +1,21 @@
-import {EncounterPokemon, Pokemon} from "../../generated/prisma";
+import {EncounterPokemon, ItemType, Pokemon} from "../../generated/prisma";
 import prisma from "../lib/prisma";
 
 interface EncounterResult {
     pokemon: Pokemon | null;
     isShiny: boolean;
+    pokeballs: {
+        id: number;
+        quantity: number;
+        item: {
+            id: number;
+            name: string;
+            type: ItemType;
+        };
+    }[];
 }
 
-async function encounterPokemon(locationId: number): Promise<EncounterResult | null> {
-
-    console.log("Encountering pokemon at location:", locationId);
+async function encounterPokemon(locationId: number, userId: string): Promise<EncounterResult | null> {
 
     const encountersList = await prisma.encounterPokemon.findMany({
         where: { locationId }
@@ -33,9 +40,32 @@ async function encounterPokemon(locationId: number): Promise<EncounterResult | n
             where: { id: selectedEncounter?.pokemonId }
         });
 
+        const pokeballs = await prisma.userItem.findMany({
+            where: {
+                userId,
+                item: {
+                    type: "POKEBALL"
+                }
+            },
+            select: {
+                id: true,
+                quantity: true,
+                item: {
+                    select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        spriteUrl: true,
+                        catchChanceBonus: true
+                    }
+                }
+            }
+        });
+
         return {
             pokemon: pokemon,
-            isShiny
+            isShiny,
+            pokeballs: pokeballs
         };
     }
     return null;

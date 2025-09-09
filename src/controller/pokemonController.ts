@@ -1,9 +1,11 @@
 import {NextFunction, Request, Response} from "express";
 import {pokemonService} from "../service/pokemonService";
+import {ApiError} from "../utils/ApiError";
 
 async function catchPokemon(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
         const { locationId, itemId, isShiny } = req.body;
+
         const userId = (req.user as { id: string }).id;
         const pokemonId = parseInt(req.params.id, 10);
         if (isNaN(pokemonId) || pokemonId <= 0) {
@@ -14,7 +16,14 @@ async function catchPokemon(req: Request, res: Response, next: NextFunction): Pr
             return;
         }
 
-        const catchResult = await pokemonService.catchPokemon(pokemonId, locationId, itemId, userId, isShiny);
+        const locationIdNum = Number(locationId);
+        const itemIdNum = Number(itemId);
+
+        if (isNaN(locationIdNum) || isNaN(itemIdNum)) {
+            throw new ApiError(400, 'Id de lieu ou id item incorrect', 'INVALID_ENCOUNTER_DATA');
+        }
+
+        const catchResult = await pokemonService.catchPokemon(pokemonId, locationIdNum, itemIdNum, userId, isShiny);
         res.status(200).json(catchResult);
 
     } catch (err) {

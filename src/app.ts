@@ -6,10 +6,14 @@ import locationRoute from "./route/locationRoute";
 import pokemonRoute from "./route/pokemonRoute";
 import itemRoute from "./route/itemRoute";
 import {errorHandler} from "./middleware/errorHandlerMiddleware";
+import passport from "./lib/passport";
+import {logRequest} from "./middleware/logMiddleware";
 
 const app = express();
 
 configMiddleware(app);
+app.use(passport.initialize());
+app.use(logRequest);
 
 app.use('/api/task', taskRoute);
 app.use('/api/auth', authRoute);

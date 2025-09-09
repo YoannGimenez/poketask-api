@@ -128,12 +128,16 @@ async function completeTask(req: Request, res: Response, next: NextFunction): Pr
         const userId = (req.user as User).id;
         const taskId = req.params.id;
 
-        const task = await taskService.completeTask(taskId, userId);
+        const { completedTask, user, leveledUp, evolvedPokemons } =
+            await taskService.completeTask(taskId, userId);
+
         res.status(200).json({
             success: true,
             message: 'Tâche marquée comme complétée',
-            user: task.user,
-            task: task.completedTask
+            leveledUp,
+            user,
+            evolvedPokemons,
+            task: completedTask
         });
     } catch (err) {
         next(err);

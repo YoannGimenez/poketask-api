@@ -3,6 +3,7 @@ import {locationService} from "../service/locationService";
 
 async function encounterPokemon(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+        const userId = (req.user as { id: string }).id;
         const locationId = parseInt(req.params.id, 10);
 
         if (isNaN(locationId) || locationId <= 0) {
@@ -13,7 +14,7 @@ async function encounterPokemon(req: Request, res: Response, next: NextFunction)
             return;
         }
 
-        const encounter = await locationService.encounterPokemon(locationId);
+        const encounter = await locationService.encounterPokemon(locationId, userId);
         res.status(200).json(encounter);
     } catch (err) {
         next(err);
