@@ -73,10 +73,18 @@ async function encounterPokemon(locationId: number, userId: string): Promise<Enc
 
 async function getUserLocations(userId: string) {
     const userLocations = await prisma.userLocation.findMany({
-        where: { userId },
+        where: {
+            userId,
+            unlocked: true
+        },
         include: {
             location: true,
         },
+        orderBy: {
+            location: {
+                levelUnlock: 'asc'
+            }
+        }
     });
 
     return userLocations.map((userLocation) => ({
@@ -84,10 +92,72 @@ async function getUserLocations(userId: string) {
         name: userLocation.location.name,
         type: userLocation.location.type,
         region: userLocation.location.region,
+        levelUnlock: userLocation.location.levelUnlock,
+        moneyMin: userLocation.location.moneyMin,
+        moneyMax: userLocation.location.moneyMax,
+        completed: userLocation.completed,
+        completedAmount: userLocation.completedAmount
     }));
 }
 
+async function createUserLocations(userId: string): Promise<void> {
+    const allLocations = await prisma.location.findMany({
+        select: {id: true, levelUnlock: true}
+    });
+
+    const userLocationsData = allLocations.map(location => ({
+        userId,
+        locationId: location.id,
+        unlocked: location.levelUnlock === 1,
+        completed: false,
+        completedAmount: 0
+    }));
+
+    await prisma.userLocation.createMany({
+        data: userLocationsData,
+        skipDuplicates: true
+    });
+}
+
+async function unlockLocationsByLevel(userId: string, userLevel: number): Promise<void> {
+    const userLocationsToUnlock = await prisma.userLocation.findMany({
+        where: {
+            userId,
+            unlocked: false,
+            location: {
+                levelUnlock: {
+                    lte: userLevel
+                }
+            }
+        },
+        include: {
+            location: {
+                select: {
+                    name: true
+                }
+            }
+        }
+    });
+
+    const locationIds = userLocationsToUnlock.map(ul => ul.locationId);
+
+    await prisma.userLocation.updateMany({
+        where: {
+            userId,
+            locationId: {
+                in: locationIds
+            }
+        },
+        data: {
+            unlocked: true
+        }
+    });
+}
+
+
 export const locationService = {
     encounterPokemon,
-    getUserLocations
+    getUserLocations,
+    createUserLocations,
+    unlockLocationsByLevel
 };

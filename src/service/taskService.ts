@@ -9,6 +9,7 @@ import {
 } from '../utils/dateUtils';
 import {pokemonService} from "./pokemonService";
 import {ApiError} from "../utils/ApiError";
+import {locationService} from "./locationService";
 
 export type TaskWithUser = Task & { user: User };
 
@@ -270,6 +271,7 @@ async function gainExperience(user: User, taskDifficulty: TaskDifficulty): Promi
     let evolvedPokemons: { basePokemonName: string; evolvedPokemonName: string; evolvedPokemonSpriteUrl: string; }[] = [];
     if (leveledUp) {
         evolvedPokemons = await pokemonService.checkForEvolutions(updatedUser);
+        await locationService.unlockLocationsByLevel(user.id, newLevel);
     }
 
     return {

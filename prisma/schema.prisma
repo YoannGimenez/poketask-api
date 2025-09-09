@@ -176,12 +176,13 @@ model Pokemon {
 }
 
 model Location {
-  id       Int          @id @default(autoincrement())
-  name     String       @unique
-  region   Region
-  moneyMin Int
-  moneyMax Int
-  type     LocationType @default(ROUTE)
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  region      Region
+  moneyMin    Int
+  moneyMax    Int
+  type        LocationType @default(ROUTE)
+  levelUnlock Int          @default(1)
 
   encounterPokemon EncounterPokemon[]
   encounterItem    EncounterItem[]

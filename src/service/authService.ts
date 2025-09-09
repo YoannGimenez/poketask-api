@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import {TaskStatus, User} from '../../generated/prisma';
 import {ApiError} from "../utils/ApiError";
+import {locationService} from "./locationService";
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
@@ -17,7 +18,7 @@ interface LoginData {
     password: string;
 }
 
-async function register(data: RegisterData): Promise<Omit<User, 'password'>> {
+async function register(data: RegisterData): Promise<{ user: any; token: string }> {
     const existingUser = await prisma.user.findFirst({
         where: {
             OR: [
@@ -28,7 +29,7 @@ async function register(data: RegisterData): Promise<Omit<User, 'password'>> {
     });
 
     if (existingUser) {
-        throw new Error('Un utilisateur avec cet email ou nom d\'utilisateur existe déjà');
+        throw new ApiError(401,'L\'email ou nom d\'utilisateur n\'est pas disponible', 'USER_ALREADY_EXISTS');
     }
 
     const hashedPassword = bcrypt.hashSync(data.password, 10);
@@ -41,8 +42,34 @@ async function register(data: RegisterData): Promise<Omit<User, 'password'>> {
         }
     });
 
+    const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+
+    await locationService.createUserLocations(user.id);
+
+    const pokeballs = await prisma.item.findMany({
+        where: { name: { in: ['Pokéball', 'Super Ball', 'Hyper Ball'] } }
+    });
+
+    const userItemsData = pokeballs.map(ball => ({
+        userId: user.id,
+        itemId: ball.id,
+        quantity: 50,
+        unlocked: true,
+    }));
+
+    await prisma.userItem.createMany({
+        data: userItemsData,
+        skipDuplicates: true,
+    });
+
     const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return {
+        user: userWithoutPassword, token
+    };
 }
 
 async function login(data: LoginData): Promise<{ user: any; token: string }> {

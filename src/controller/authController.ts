@@ -18,10 +18,11 @@ async function register(req: Request, res: Response, next: NextFunction): Promis
             return;
         }
 
-        const user = await authService.register({ username, email, password });
+        const result = await authService.register({ username, email, password });
         res.status(201).json({ 
             message: 'Utilisateur créé avec succès',
-            user 
+            user : result.user,
+            token: result.token
         });
     } catch (err) {
         next(err);
